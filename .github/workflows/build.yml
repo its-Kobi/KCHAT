@@ -106,7 +106,7 @@ jobs:
           path: KCHAT.AppImage
 
   build-macos:
-    name: macOS (KCHAT.app)
+    name: macOS Apple Silicon (KCHAT.app)
     runs-on: macos-latest
     steps:
       - name: Check out repository
@@ -135,4 +135,40 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: KCHAT-macOS
+          path: dist/KCHAT.app
+
+  build-macos-intel:
+    name: macOS Intel (KCHAT.app)
+    runs-on: macos-15-intel
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 (python.org build ships Tcl/Tk)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Verify tkinter and architecture
+        run: |
+          python -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+          python -c "import platform; print('python arch:', platform.machine())"
+
+      - name: Build KCHAT.app with PyInstaller
+        run: pyinstaller --noconfirm --clean --windowed --name KCHAT "Kchat_1.1v.py"
+
+      - name: Confirm Intel binary and smoke test
+        run: |
+          file dist/KCHAT.app/Contents/MacOS/KCHAT
+          dist/KCHAT.app/Contents/MacOS/KCHAT help
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KCHAT-macOS-Intel
           path: dist/KCHAT.app
