@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Local KCHAT user data (never commit real accounts/config)
+kchat_accounts*.enc
+kchat_accounts*.json
+kchat_config.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

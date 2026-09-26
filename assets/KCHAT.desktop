@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=KCHAT
+Comment=Secure encrypted chat for local networks
+Exec=KCHAT
+Icon=kchat
+Categories=Network;Chat;
+Terminal=false
+StartupWMClass=KCHAT

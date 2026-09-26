@@ -1,0 +1,5 @@
+# KCHAT runtime dependencies.
+# tkinter is part of the Python standard library (no install needed),
+# but Linux systems need the OS Tk libraries (e.g. `sudo apt install python3-tk`).
+Pillow>=10.0
+cryptography>=41.0

@@ -1,0 +1,138 @@
+name: Build KCHAT
+
+# Each OS builds NATIVELY on its own runner.
+# PyInstaller can only target the OS it runs on, so there is one job
+# per platform: windows-latest -> KCHAT.exe,
+# ubuntu-latest -> KCHAT.AppImage, macos-latest -> KCHAT.app.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Windows (KCHAT.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Verify tkinter is available
+        run: python -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+
+      - name: Build KCHAT.exe with PyInstaller
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name KCHAT --icon assets/kchat.ico "Kchat_1.1v.py"
+
+      - name: Smoke test (CLI path needs no display; checks imports/DLLs load)
+        run: dist\KCHAT.exe help
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KCHAT-Windows
+          path: dist/KCHAT.exe
+
+  build-linux:
+    name: Linux (KCHAT.AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system Tk (tkinter needs OS-level Tcl/Tk libs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-venv
+
+      - name: Create virtualenv with system Python
+        # The stock Ubuntu python3 is used (instead of setup-python) so the
+        # venv inherits the python3-tk stdlib module installed above.
+        run: |
+          python3 --version
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt pyinstaller
+
+      - name: Verify tkinter is available
+        run: .venv/bin/python -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+
+      - name: Build Linux binary with PyInstaller
+        run: .venv/bin/pyinstaller --noconfirm --clean --onefile --name KCHAT "Kchat_1.1v.py"
+
+      - name: Smoke test the raw binary
+        run: ./dist/KCHAT help
+
+      - name: Assemble AppDir
+        run: |
+          rm -rf AppDir
+          mkdir -p AppDir/usr/bin
+          cp dist/KCHAT AppDir/usr/bin/KCHAT
+          cp assets/KCHAT.desktop AppDir/KCHAT.desktop
+          cp assets/kchat.png AppDir/kchat.png
+          printf '#!/bin/sh\nexec "$APPDIR/usr/bin/KCHAT" "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun AppDir/usr/bin/KCHAT
+
+      - name: Download appimagetool
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool.AppImage
+          chmod +x appimagetool.AppImage
+
+      - name: Build KCHAT.AppImage (real squashfs AppImage, not a rename)
+        env:
+          ARCH: x86_64
+        run: ./appimagetool.AppImage --appimage-extract-and-run AppDir KCHAT.AppImage
+
+      - name: Make executable and smoke test the AppImage
+        run: |
+          chmod +x KCHAT.AppImage
+          ./KCHAT.AppImage --appimage-extract-and-run help
+          file KCHAT.AppImage
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KCHAT-Linux
+          path: KCHAT.AppImage
+
+  build-macos:
+    name: macOS (KCHAT.app)
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 (python.org build ships Tcl/Tk)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Verify tkinter is available
+        run: python -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+
+      - name: Build KCHAT.app with PyInstaller
+        run: pyinstaller --noconfirm --clean --windowed --name KCHAT "Kchat_1.1v.py"
+
+      - name: Smoke test inside the .app bundle
+        run: dist/KCHAT.app/Contents/MacOS/KCHAT help
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KCHAT-macOS
+          path: dist/KCHAT.app
